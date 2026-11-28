@@ -1,0 +1,1 @@
+{"description":"いろぱれ｜カラーパレットツール","name":"iropare","private":true,"scripts":{"check":"node --check app.js && node --check js/color-core.js && node --check sw.js","test":"node --test tests/"},"version":"1.0.0"}

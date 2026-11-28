@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>いろぱれ｜カラーパレットツール</title>
+<meta name="description" content="画像から色を抽出したり、調和のとれたカラーパレットを生成できるツール。HEXコピーとお気に入り保存つき。">
+<meta name="theme-color" content="#0a0f1c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+// 🌙 保存済みテーマを先読みして適用する（ちらつき防止）
+try {
+  var savedTheme = localStorage.getItem("iropare-theme");
+  if (savedTheme === "light" || savedTheme === "dark") {
+    document.documentElement.setAttribute("data-theme", savedTheme);
+  }
+} catch (e) { /* 💾 テーマ保存が使えない環境ではダークを既定にする */ }
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 🧭 上部ナビゲーション -->
+<nav class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="#top">いろぱれ</a>
+    <span class="topbar-links">
+      <a href="#generate-sec">生成</a>
+      <a href="#extract-sec">画像から抽出</a>
+      <a href="#favorites-sec">お気に入り</a>
+      <button type="button" class="theme-toggle" id="themeToggle" aria-label="テーマ切り替え">🌙</button>
+    </span>
+  </div>
+</nav>
+
+<!-- 🎨 サイトヘッダー -->
+<header class="site-header" id="top">
+  <div class="wrap">
+    <p class="eyebrow">COLOR PALETTE</p>
+    <h1>いろぱれ</h1>
+    <p class="tagline">カラーパレットツール</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 🖼️ 現在のパレット -->
+  <section class="card">
+    <h2>現在のパレット</h2>
+    <div id="paletteArea" class="palette" aria-live="polite"></div>
+    <p id="copyMsg" class="note" aria-live="polite"></p>
+    <div class="actions">
+      <button id="copyAllBtn" class="btn btn-sub" type="button">HEXをすべてコピー</button>
+      <button id="saveBtn" class="btn btn-primary" type="button">お気に入りに保存</button>
+    </div>
+    <p class="note">色をクリックすると、その色のHEXコードをコピーします。</p>
+  </section>
+
+  <!-- 🎨 パレットを生成する -->
+  <section class="card" id="generate-sec">
+    <h2>パレットを生成する</h2>
+    <div class="controls">
+      <label for="strategySelect">調和のタイプ</label>
+      <select id="strategySelect">
+        <option value="random">おまかせ（ランダム）</option>
+        <option value="analogous">アナロジー（類似色）</option>
+        <option value="complementary">補色（コンプリメンタリー）</option>
+        <option value="triadic">トライアド（三色配色）</option>
+        <option value="split">スプリット・コンプリメンタリー</option>
+        <option value="monochrome">モノクローム（同系色）</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button id="generateBtn" class="btn btn-primary" type="button">新しいパレットを生成</button>
+    </div>
+    <p class="note">HSL色空間で色相の関係を計算し、彩度・明度に変化をつけて5色のパレットを作ります。</p>
+  </section>
+
+  <!-- 📷 画像から色を抽出する -->
+  <section class="card" id="extract-sec">
+    <h2>画像から色を抽出する</h2>
+    <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="画像ファイルを選ぶ">
+      <p class="drop-main">ここに画像をドラッグ＆ドロップ</p>
+      <p class="note">またはクリックしてファイルを選択（PNG / JPEG など）</p>
+    </div>
+    <input id="fileInput" type="file" accept="image/*" hidden>
+    <div id="previewWrap" class="preview-wrap" hidden>
+      <img id="previewImg" alt="アップロードした画像のプレビュー">
+    </div>
+    <p id="imageMsg" class="note" aria-live="polite"></p>
+    <p class="note">画像はブラウザ内でのみ処理され、サーバーには送信されません。Canvasで縮小サンプリングし、色の出現頻度をもとに代表色を約6色抽出します。</p>
+  </section>
+
+  <!-- ⭐ お気に入り -->
+  <section class="card" id="favorites-sec">
+    <h2>お気に入り</h2>
+    <div id="favoritesList" class="favorites"></div>
+    <p id="favoritesEmpty" class="note">まだお気に入りはありません。「お気に入りに保存」で現在のパレットを残せます。</p>
+    <div class="actions">
+      <button id="clearFavoritesBtn" class="btn btn-sub" type="button" disabled>お気に入りをすべて削除</button>
+    </div>
+    <p class="note">お気に入りはこのブラウザの localStorage に保存されます。</p>
+  </section>
+</main>
+
+<!-- 📄 フッター -->
+<footer class="site-footer wrap">
+  <p>いろぱれ — 画像とパレットはブラウザ内でのみ処理されます</p>
+</footer>
+
+<!-- 🖼️ 画像抽出の作業用キャンバス -->
+<canvas id="workCanvas" hidden></canvas>
+<script src="js/color-core.js"></script>
+<script src="app.js"></script>
+<script>
+// ⚙️ サービスワーカーを登録する
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
